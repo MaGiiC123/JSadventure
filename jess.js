@@ -1,6 +1,6 @@
 var prompttext = "";
 var tickRate = 60;
-var promptHistory = [''];
+var promptHistory = [];
 var inHistory = false;
 var historyCount = 1;
 
@@ -8,6 +8,14 @@ window.onload = function() {
 	generateInputfield();
 	listenForInput();
 	setInterval(mainLoop, 1000/tickRate);
+
+	$(document).keydown(function(e) {		
+		if (e.key === "Tab") {
+			e.preventDefault();
+			setFocus();
+
+		}
+	});
 };
 
 function mainLoop() {
@@ -20,23 +28,44 @@ function listenForInput() {
 		if (event.key === "Enter") {
 			inHistory = false;
 			historyCount = 1;
-
 			interpretInput(prompttext);
-			document.getElementById("textarea").innerHTML += prompttext+"\n";
-			
+			document.getElementById("textarea").innerHTML += prompttext+"\n";			
 			promptHistory.push(prompttext.replace("> ", ""));
 			document.getElementById('commandinput').value = "> ";
 		}
-		if (event.key === "Delete" || event.key === "Backspace") {
+		else if (event.key === "Delete" || event.key === "Backspace") {
 			if (prompttext === "> " || prompttext === ">" || prompttext === "")
 				document.getElementById('commandinput').value = "> ";
 		}
-		if (event.key === "ArrowUp") {
-			if(inHistory == true) {
-				historyCount++;				
+		else if (event.key === "ArrowUp") {
+			if (historyCount <= promptHistory.length) {
+				if(inHistory == true) {
+					historyCount++;				
+				}
+				setPrompttext(promptHistory[promptHistory.length - historyCount]);
+				inHistory = true;
 			}
-			setPrompttext(promptHistory[promptHistory.length - historyCount]);
-			inHistory = true;
+			else {
+				setFocus();
+			}
+		}
+		else if (event.key === "ArrowDown") {
+			if(inHistory == true) {
+				historyCount--;
+				if (historyCount <= 0) {
+					historyCount = 0;
+				}
+			}
+			if (historyCount <= promptHistory.length) {
+				setPrompttext(promptHistory[promptHistory.length - historyCount]);
+				inHistory = true;
+			}
+			console.log('promptHistorylegth: ' + promptHistory.length + ' historyCount: ' + historyCount);
+		}
+		else if (event.key != undefined ) {
+			//alert('ass' + event.key);
+			//tabCompletion();
+			setFocus();
 		}
 	});
 }
@@ -47,6 +76,9 @@ function generateInputfield() {
 }
 
 function setPrompttext(_text) {
+	if (_text == undefined)	{
+		_text = "";
+	}
 	document.getElementById("commandinput").value = "> "+_text;
 	setFocus();
 }
@@ -75,17 +107,31 @@ function interpretInput(input) {
 	var _input = [];
 	_input = input.replace("> ", "").split(" ");
 	
-	for (var i = 0; i <= Object.keys(RegisteredCommands).length; i++) {
-		if (_input[0] == RegisteredCommands.properties[i].name) {
-			if(RegisteredCommands.properties[i].parameter == true) {
+	for (var i = 0; i < Object.keys(RegisteredCommands.properties).length; i++) {
+		//check for a full string equivalent
+		if (RegisteredCommands.properties[i].name.includes(_input[0]) || RegisteredCommands.properties[i].name[0].includes(_input[0])) {
+			if(RegisteredCommands.properties[i].parameter == true)
 				RegisteredCommands.properties[i].value(_input);
-			}
-			else {
+			else
 				RegisteredCommands.properties[i].value();
-			}
 		}
 	}
-	
+}
+
+function tabCompletion(input) {
+	for (var i = 0; i < Object.keys(RegisteredCommands.properties).length; i++) {
+		var stringCompare = [''];
+		RegisteredCommands.properties[i].name[0].forEach(element => {
+			input.forEach(element2 => {
+				if (element == element2) {
+					stringCompare.push(element);
+				}
+				else {
+					return;
+				}
+			});
+		});
+	}
 }
 
 function clearConsoleLog() {
@@ -102,10 +148,33 @@ function add(args) {
 	document.getElementById("textarea").innerHTML += "sum: " + sum + "\n";
 }
 
+function subtract(args) {
+	if (args == undefined || args[0] == undefined) return;
+
+	var sum;
+	var flip = true;
+	args.forEach(element => {
+		if (flip == true) {
+			flip = false;
+			return;
+		}		
+		if (sum == undefined) {
+			sum = args[1];
+			return;
+		}
+		if(!parseFloat(element))
+			return;
+		sum -= parseFloat(element);
+	});
+	document.getElementById("textarea").innerHTML += "sum: " + sum + "\n";
+}
+
 var RegisteredCommands = {
 	properties: {
-		0: {name: "clear", value: function() { clearConsoleLog(); }, parameter: false},
-		1: {name: "add", value: function(input) { add(input); }, parameter: true}
+		0: {name: ["clear"], value: function() { clearConsoleLog(); }, parameter: false},
+		1: {name: ["add"], value: function(input) { add(input); }, parameter: true},
+		2: {name: ["subtract"], value: function(input) { subtract(input); }, parameter: true},
+		3: {name: ["divide"], value: function(input) { divi(input); }, parameter: true},
 	}
 };
 
