@@ -5,8 +5,12 @@ var inHistory = false;
 var historyCount = 1;
 var tabThroughCompletionList = false;
 var tabCompletionCount = 1;
+var defaultPrompt = "> ";
+var commandLevelName = "";
+let commandLevel = Object.assign({}, RegisteredCommands);
 
 window.onload = function() {
+	commandLevel = Object.assign({}, RegisteredCommands);
 	generateInputfield();
 	generateTextarea();
 	listenForInput();
@@ -19,11 +23,11 @@ window.onload = function() {
 
 		}
 	});
+	setFocus();
 };
 
 function mainLoop() {
 	prompttext = document.getElementById('commandinput').value;
-
 }
 
 function listenForInput() {
@@ -34,14 +38,15 @@ function listenForInput() {
 			tabThroughCompletionList = false;
 			tabCompletionCount = 1;
 
+			addConsoleLine(prompttext);
 			interpretInput(prompttext);
 			//show command in console //document.getElementById("textarea").innerHTML += prompttext+"\n";			
-			promptHistory.push(prompttext.replace("> ", ""));
-			document.getElementById('commandinput').value = "> ";
+			promptHistory.push(prompttext.replace(commandLevelName+defaultPrompt, ""));
+			document.getElementById('commandinput').value = commandLevelName+defaultPrompt;
 		}
 		else if (event.key === "Delete" || event.key === "Backspace") {
-			if (prompttext === "> " || prompttext === ">" || prompttext === "")
-				document.getElementById('commandinput').value = "> ";
+			if (prompttext === commandLevelName+defaultPrompt || prompttext === commandLevelName+defaultPrompt || prompttext === "")
+				document.getElementById('commandinput').value = commandLevelName+defaultPrompt;
 		}
 		else if (event.key === "ArrowUp") {
 			if (historyCount <= promptHistory.length) {
@@ -88,8 +93,12 @@ function setPrompttext(_text) {
 	if (_text == undefined)	{
 		_text = "";
 	}
-	document.getElementById("commandinput").value = "> "+_text;
+	document.getElementById("commandinput").value = commandLevelName+defaultPrompt + _text;
 	setFocus();
+}
+
+function addConsoleLine(_text) {
+	document.getElementById("textarea").innerHTML = _text + "\n" + document.getElementById("textarea").innerHTML;
 }
 
 function setFocus() {
@@ -114,24 +123,35 @@ function setCaretPosition(ctrl, pos) {
 
 function interpretInput(input) {
 	var _input = [];
-	_input = input.replace("> ", "").split(" ");
-	
-	for (var i = 0; i < Object.keys(RegisteredCommands.properties).length; i++) {
+	_input = input.replace(commandLevelName+defaultPrompt, "").split(" ");
+	console.log(commandLevel);
+	for (var i = 0; i < Object.keys(commandLevel.properties).length; i++) {
 		//check for a full string equivalent
-		if (RegisteredCommands.properties[i].name.includes(_input[0]) || RegisteredCommands.properties[i].name[0].includes(_input[0])) {
-			if(RegisteredCommands.properties[i].parameter == true)
-				RegisteredCommands.properties[i].value(_input);
+		if (commandLevel.properties[i].name.includes(_input[0]) || commandLevel.properties[i].name[0].includes(_input[0])) {
+			if(commandLevel.properties[i].parameter == true)
+				commandLevel.properties[i].value(_input);
 			else
-				RegisteredCommands.properties[i].value();
+				commandLevel.properties[i].value();
+			return;
 		}
 	}
+	for (var i = 0; i < Object.keys(commandLevel.subcommands).length; i++) {		
+		if (commandLevel.subcommands[i].name.includes(_input[0])) {
+			commandLevel.subcommands[i].value(commandLevel.subcommands[i].commands);
+			console.log(commandLevel.subcommands[i]);
+			return;
+		}
+	}
+	console.log("ass");
+	//document.getElementById("textarea").innerHTML = "could not interpret the command: " + _input[0] + "\n" + document.getElementById("textarea").innerHTML;
+	addConsoleLine("could not interpret the command: " + _input[0]);
 }
 
 function tabCompletion() {
 	var completionList = [];
 	for (var i = 0; i < Object.keys(RegisteredCommands.properties).length; i++) {
 		var _prompttext = [];
-		_prompttext = prompttext.replace("> ", "").split(" ");
+		_prompttext = prompttext.replace(commandLevelName+defaultPrompt, "").split(" ");
 		
 		if (_prompttext[0].substring(0,1) ==  RegisteredCommands.properties[i].name[0].substring(0,1)) {
 			completionList.push(RegisteredCommands.properties[i].name[0]);
@@ -152,7 +172,7 @@ function add(args) {
 		sum += parseFloat(element);
 	});
 	//document.getElementById("textarea").innerHTML += "\n"+"\n"+"\n"+"\n"+"\n"+"\n"+"\n"+"\n"+"\n"+"\n"+"\n"+"\n"+"\n"+"\n"+"\n"+"\n"+"\n"+"\n"+"\n"+"\n"+"\n"+"\n"+"\n"+"\n"+"sum: " + sum + "\n";
-	document.getElementById("textarea").innerHTML += "sum: " + sum + "\n";
+	addConsoleLine("sum: " + sum);//document.getElementById("textarea").innerHTML += "sum: " + sum + "\n";
 	//24 \n
 }
 
@@ -174,18 +194,58 @@ function subtract(args) {
 			return;
 		sum -= parseFloat(element);
 	});
-	document.getElementById("textarea").innerHTML += "sum: " + sum + "\n";
+	addConsoleLine("sum: " + sum);//document.getElementById("textarea").innerHTML += "sum: " + sum + "\n";
 }
 
-var RegisteredCommands = {
+function exitCommandLevel() {
+	console.log(commandLevel);
+	changeCommandState(commandLevel.upperLevel);	
+}
+
+var previousCommandLevel;
+function changeCommandState(_state) {
+	console.log(_state);
+	if (commandLevel != _state) {
+		previousCommandLevel = Object.assign({}, commandLevel);
+		commandLevel = Object.assign({}, _state);
+		commandLevelName = _state.name;
+		addConsoleLine("changed to level: " + _state.name);
+	}
+}
+var RegisteredCommands = {};
+var TestSubCommands = {
+	name: "TestSubCommands",
+	upperLevel: RegisteredCommands,
+	properties: {
+		0: {name: ["why"], value: function() { subCommandwhy(); }, parameter: false},
+		1: {name: ["exit"], value: function() { exitCommandLevel(); }, parameter: false},	
+	},
+	subcommands: {
+		0: {name: "", value: function() {}},
+	}
+}
+
+RegisteredCommands = {
+	name: "RegisteredCommands",
+	upperLevel: "",
 	properties: {
 		0: {name: ["clear"], value: function() { clearConsoleLog(); }, parameter: false},
 		1: {name: ["add"], value: function(input) { add(input); }, parameter: true},
 		2: {name: ["subtract"], value: function(input) { subtract(input); }, parameter: true},
 		3: {name: ["divide"], value: function(input) { divi(input); }, parameter: true},
-		4: {name: ["subivide"], value: function(input) { divi(input); }, parameter: true}
+		4: {name: ["testdivide"], value: function(input) { divi(input); }, parameter: true},
+		5: {name: ["exit"], value: function() { exitCommandLevel() } },
+	},
+	subcommands: {
+		0: {name: "TestSubCommands", value: function(input) { changeCommandState(input); }, commands: TestSubCommands}
 	}
 };
+
+
+
+function subCommandwhy() {
+	addConsoleLine("why? why you doin this");
+}
 
 function LoadNewPage(link) {
 	document.location.href = link;
@@ -195,5 +255,5 @@ function divi(args) {
 	for (var i = 2; i < args.length; i++) {
 		args[1] = parseFloat(args[1]) / parseFloat(args[i]);
 	}
-	document.getElementById("textarea").innerHTML += "sum: " + args[1] + "\n";
+	addConsoleLine("sum: " + args[1]);//document.getElementById("textarea").innerHTML += "sum: " + args[1] + "\n";
 }

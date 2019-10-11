@@ -9,6 +9,7 @@
 	margin: 0px;
 	position: relative;
 	outline: none;
+	width: 90%;
 }
 
 textarea {
@@ -25,5 +26,7 @@ textarea {
 	margin: 0px;
 	position: relative;
 	background: #000000;
-	border-color: #000000
+	border-color: #000000;
+	font-family: monospace;
+	font-size: 20px;
 }
